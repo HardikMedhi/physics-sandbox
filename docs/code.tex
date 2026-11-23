@@ -264,14 +264,16 @@ module scripts loaded from \texttt{file://} URLs.
 \texttt{.github/workflows/deploy.yml} runs on every push to \texttt{main}:
 \begin{enumerate}
   \item \texttt{npm ci} and \texttt{npm test}. A failing test stops the deployment.
-  \item Install a minimal \TeX{} Live from Ubuntu packages and run \texttt{npm run docs}
-        (\texttt{make -C docs publish}). This builds the three PDFs and copies them to \texttt{public/docs/}.
-  \item \texttt{npm run build}: Vite copies \texttt{public/} into \texttt{dist/}, so the PDFs are
-        served at \texttt{docs/physics.pdf} and so on, next to the app.
+  \item \texttt{npm run build}: Vite copies \texttt{public/} into \texttt{dist/}, so the committed PDFs in
+        \texttt{public/docs/} are served at \texttt{docs/physics.pdf} and so on, next to the app.
   \item Upload \texttt{dist/} as the Pages artifact and deploy it.
 \end{enumerate}
-The PDFs are generated and never committed (\texttt{public/docs/} is in \texttt{.gitignore}), so the published
-documents always match the \LaTeX{} sources of the deployed version.
+
+\paragraph{PDFs are built locally.} An earlier version installed \TeX{} Live on the CI machine and built the PDFs
+there. That kept them automatically in sync, but reinstalling \TeX{} on every push made each deployment slow. Now
+\texttt{npm run docs} (\texttt{make -C docs publish}) builds the PDFs locally and copies them to
+\texttt{public/docs/}, and they are committed together with the \texttt{.tex} changes. The trade-off is that someone has
+to remember to rebuild after editing a document; the README says so.
 
 \subsection{Links in the app}
 A collapsible \emph{Documentation} panel (\texttt{ui/docsPanel.ts}) at the bottom of the sidebar links to
@@ -332,7 +334,8 @@ each frame. The shadow map also has a small depth and normal bias against self-s
   \item \textbf{Milestone 1.1} --- axis gizmo, table size/height/on--off, draggable force arrow,
         pop-out plot windows (multi-page build), \texttt{PlotChart} extracted.
   \item \textbf{Milestone 1.2} --- force-arrow tooltips, procedural infinite floor grid with fog.
-  \item \textbf{Milestone 1.3} --- GitHub Pages deployment; PDFs built in CI and linked from the app.
+  \item \textbf{Milestone 1.3} --- GitHub Pages deployment; PDFs linked from the app (later: built locally
+        and committed instead of built in CI, to keep deployments fast).
   \item \textbf{Milestone 2} --- selectable/editable objects (outliner, inspector, move/scale gizmo), bounciness,
         energy plot, floor shimmer fix.
 \end{itemize}

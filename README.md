@@ -4,7 +4,7 @@ Interactive, educational 3D physics sandbox.
 
 **Live demo:** https://hardikmedhi.github.io/physics-sandbox/ (nothing to install; works in a desktop or phone browser).
 
-**Documentation (PDF, rebuilt on every deploy):**
+**Documentation (PDF):**
 [Physics notes](https://hardikmedhi.github.io/physics-sandbox/docs/physics.pdf) ·
 [Math notes](https://hardikmedhi.github.io/physics-sandbox/docs/math.pdf) ·
 [Code notes](https://hardikmedhi.github.io/physics-sandbox/docs/code.pdf)
@@ -27,7 +27,7 @@ npm install -D typescript vite vitest @types/three
 npm run dev      # http://localhost:5173
 npm test
 npm run build    # static site in dist/
-npm run docs     # build the PDFs (docs/build/) and copy them to public/docs/ for the app
+npm run docs     # build the PDFs and copy them to public/docs/ (commit these)
 ```
 
 ## Layout
@@ -38,5 +38,8 @@ npm run docs     # build the PDFs (docs/build/) and copy them to public/docs/ fo
 - `docs/`: living documents (physics, math, code) in LaTeX.
 
 ## Deployment
-Every push to `main` runs the tests, builds the PDFs and the app, and publishes both to GitHub Pages
+Every push to `main` runs the tests, builds the app and publishes it to GitHub Pages
 (`.github/workflows/deploy.yml`).
+
+The documentation PDFs are **built locally** and committed: after editing anything in `docs/`, run
+`npm run docs` and commit the updated files in `public/docs/` together with the `.tex` changes.
