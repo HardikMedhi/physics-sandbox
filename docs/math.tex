@@ -1,0 +1,186 @@
+\documentclass[11pt]{article}
+\input{preamble}
+\title{\project{} --- Math Notes}
+\author{Living document}
+\date{Last updated: \today}
+
+\begin{document}
+\maketitle
+\noindent This document describes the mathematics and numerical methods behind
+the simulation: how continuous equations become the discrete updates the code
+actually performs, and what errors that introduces. Each implementation step
+adds a section.
+
+\tableofcontents
+
+\section{Notation}
+Vectors are bold: $\vect{r} = (x,y,z)$, with magnitude $|\vect{r}| = \sqrt{x^2+y^2+z^2}$.
+Subscript $h$ means the horizontal part, $\vect{v}_h = (v_x, 0, v_z)$. Discrete times are
+$t_n = n\,\Delta t$, and $\vect{r}_n$ means $\vect{r}(t_n)$ as computed by the program.
+
+\section{Milestone 1: a ball on a table}
+
+\subsection{Direction from two angles}
+A direction is the point on the unit sphere with azimuth $\theta$ and elevation
+$\varphi$ (spherical coordinates with $y$ as the polar axis):
+\begin{equation}
+  \unitv{n} = (\cos\varphi\cos\theta,\ \sin\varphi,\ -\cos\varphi\sin\theta), \qquad |\unitv{n}| = 1.
+\end{equation}
+The minus sign on $z$ makes $\theta$ increase counter-clockwise when the $x$--$z$ plane is
+seen from above ($+y$), because $+z$ points toward the viewer in a right-handed, $y$-up frame.
+
+\subsection{The equation to solve}
+Newton's law is a second-order ODE, written as a first-order system for the state $(\vect{r},\vect{v})$:
+\begin{equation}
+  \dot{\vect{r}} = \vect{v}, \qquad \dot{\vect{v}} = \vect{a}(\vect{r},\vect{v},t) = \frac{\vect{F}_\text{net}(\vect{r},\vect{v},t)}{m}.
+\end{equation}
+The right-hand side is only \emph{piecewise} smooth: it jumps when a force switches on or off,
+when friction changes from static to kinetic, and when the ball leaves or lands on a surface.
+
+\subsection{Time grid}
+Time is always computed as $t_n = n\,\Delta t$ rather than by repeatedly adding $\Delta t$.
+Repeated addition accumulates rounding error (e.g.\ $0.1$ has no exact binary representation),
+so after many steps $\sum \Delta t \ne n\Delta t$~\cite{goldberg1991}. Multiplying keeps every
+time reproducible, which the timeline relies on when seeking. The step size is limited to
+$\SI{0.001}{s}\le\Delta t\le\SI{0.1}{s}$.
+
+\subsection{Integrator: semi-implicit (symplectic) Euler}
+The update used is~\cite{hairer2006}
+\begin{align}
+  \vect{v}_{n+1} &= \vect{v}_n + \vect{a}(\vect{r}_n,\vect{v}_n,t_n)\,\Delta t, \\
+  \vect{r}_{n+1} &= \vect{r}_n + \vect{v}_{n+1}\,\Delta t.
+\end{align}
+It differs from \emph{explicit} Euler only in using the \emph{new} velocity to update the position.
+Both are first-order accurate (global error $O(\Delta t)$)~\cite{press2007}, but semi-implicit Euler is
+\emph{symplectic}: for conservative systems such as a pendulum or an orbit, its energy error
+stays bounded instead of growing steadily~\cite{hairer2006}. That matters for later milestones.
+
+\paragraph{Exact error for a constant force.} With constant $\vect{a}$ and $\vect{v}_0 = 0$:
+$\vect{v}_n = n\,\vect{a}\,\Delta t$ and
+\begin{equation}
+  \vect{r}_n - \vect{r}_0 = \sum_{k=1}^{n} \vect{v}_k\,\Delta t = \vect{a}\,\Delta t^2\,\frac{n(n+1)}{2}
+  = \tfrac12\vect{a}\,t_n^2 + \tfrac12\vect{a}\,\Delta t\, t_n .
+\end{equation}
+The velocity is exact, and the position overshoots the exact $\tfrac12 a t^2$ by
+$\tfrac12 a\,\Delta t\,t$. This is first-order in $\Delta t$, and the automated test checks it.
+For $a = \SI{2}{m/s^2}$, $\Delta t = \SI{0.01}{s}$ and $t = \SI{2}{s}$, the error is \SI{2}{cm}
+out of \SI{4}{m}, i.e.\ 0.5\,\%.
+
+\subsection{Friction is non-smooth}
+The kinetic friction term $-\mu_k N\,\vect{v}_h/|\vect{v}_h|$ is discontinuous at $\vect{v}_h=\vect{0}$, and
+static friction is \emph{set-valued} there: it can be anything with magnitude up to $\mu_s N$~\cite{stewart2000}.
+A naive integrator makes a stopping ball jitter back and forth. Two rules avoid that:
+\begin{enumerate}
+  \item \textbf{Rest test.} If $|\vect{v}_h| < \varepsilon_v = \SI{e-6}{m/s}$, the ball counts as at rest and the
+        static rule applies: friction exactly cancels the horizontal push if $|\vect{F}_h|\le\mu_s N$.
+  \item \textbf{No reversal.} If, while sliding, a step would make $\vect{v}_{h,n+1}\cdot\vect{v}_{h,n} \le 0$, then
+        friction would have stopped the ball inside the step, so $\vect{v}_{h,n+1}$ is set to $\vect{0}$.
+\end{enumerate}
+The stopping time is then correct to within one step, which is also tested.
+
+\subsection{Contact and landing}
+The ball is \emph{in contact} with a surface of height $y_s$ if
+$|y - (y_s + r)| \le \varepsilon_c = \SI{e-6}{m}$, $v_y \le \varepsilon_v$, and the centre lies within the
+surface's bounds. While in contact, $N$ cancels the downward external force, so $a_y = 0$.
+
+\emph{Landing} is detected when a step carries the centre from above the contact height to
+below it: $y_n \ge y_s + r - \varepsilon_c$ and $y_{n+1} < y_s + r$. The position is snapped to
+$y_s + r$ and the downward velocity is removed. The landing time therefore has an error of at most
+$\Delta t$. Detecting the exact crossing time (event location) is a possible later refinement~\cite{press2007}.
+
+\subsection{Recorded quantities}
+At each step the program stores $t_n$, $\vect{r}_n$, $\vect{v}_n$ and the acceleration $\vect{a}_n = \vect{F}_\text{net}(\vect{r}_n,\vect{v}_n,t_n)/m$
+\emph{at that state}. It also stores these derived values:
+\begin{align}
+  \Delta\vect{r}_n &= \vect{r}_n - \vect{r}_0, \\
+  s_{n+1} &= s_n + |\vect{v}_{n+1}|\,\Delta t, \qquad s_{x,n+1} = s_{x,n} + |v_{x,n+1}|\,\Delta t \ \ (\text{same for } y, z).
+\end{align}
+Because $\vect{r}_{n+1}-\vect{r}_n = \vect{v}_{n+1}\Delta t$ exactly, $s_n$ is the \emph{exact} length of the
+polyline through the computed positions. It is a right-endpoint Riemann sum for
+$\int |\vect{v}|\,\dd t$, consistent with the integrator. By the triangle inequality,
+$s_n \ge |\Delta\vect{r}_n|$.
+
+\subsection{Determinism}
+Given the same parameters, forces and $\Delta t$, the computation is a pure function of its inputs, so
+the results are bit-for-bit identical. Rewinding just reads stored samples. Changing a past input
+recomputes from $t=0$; applying a new force at time $t_k$ keeps samples $0..k$ and recomputes the rest.
+
+\section{Milestone 1.1: interaction geometry}
+
+\subsection{From a vector back to magnitude and angles}
+Dragging the arrow produces a force vector $\vect{F}$. The panel shows it in the same
+spherical coordinates as before, by inverting the direction formula:
+\begin{equation}
+  F = |\vect{F}|,\qquad
+  \varphi = \arcsin\!\left(\frac{F_y}{F}\right),\qquad
+  \theta = \operatorname{atan2}(-F_z,\ F_x)\ \ (\text{mapped to } [0^\circ, 360^\circ)).
+\end{equation}
+$\operatorname{atan2}$ resolves the quadrant that $\arctan(-F_z/F_x)$ cannot. When the force is
+vertical ($F_x=F_z=0$) the azimuth is undefined, so the previous value is kept. Values are rounded
+to \SI{0.01}{N} and \ang{0.1}.
+
+\subsection{Turning a 2D drag into a 3D vector}
+A mouse or finger position fixes only a \emph{ray} from the camera into the scene. The ray is
+turned into a point by intersecting it with a plane:
+\begin{itemize}
+  \item by default, the plane through the arrow tip that faces the camera (normal $= $ the camera's
+        viewing direction). In the top view this plane is horizontal; in the front and side views it is vertical;
+  \item with Shift held, the horizontal plane through the tip.
+\end{itemize}
+For a ray $\vect{p}(s) = \vect{o} + s\,\unitv{d}$ and a plane $\unitv{n}\cdot\vect{x} = c$, the
+intersection is at $s = (c - \unitv{n}\cdot\vect{o})/(\unitv{n}\cdot\unitv{d})$ (no intersection if
+$\unitv{n}\cdot\unitv{d}=0$). The force is then $\vect{F} = (\vect{x}_\text{tip} - \vect{r}_\text{ball})/k$
+with $k = \SI{0.06}{m/N}$.
+
+\subsection{Axis gizmo}
+The corner gizmo shows where the world axes point as seen by the camera. If $q$ is the camera's
+orientation (a unit quaternion), a world direction $\unitv{e}$ has camera-space coordinates
+$\vect{v} = q^{-1}\,\unitv{e}\,q$. The gizmo draws $\unitv{e}$ at screen offset $(v_x, -v_y)$
+times a fixed radius, and paints the axes in order of increasing $v_z$ (farthest first), so the
+axis pointing toward the viewer is drawn on top.
+
+\section{Milestone 1.2: picking arrows and drawing an endless grid}
+
+\subsection{Which arrow is under the pointer?}
+Each arrow is projected to the screen as a segment from $\vect{a}$ (tail) to $\vect{b}$ (tip). The
+distance from the pointer $\vect{p}$ to the segment is
+\begin{equation}
+  d = \left|\vect{p} - (\vect{a} + t^\ast(\vect{b}-\vect{a}))\right|,\qquad
+  t^\ast = \operatorname{clamp}\!\left(\frac{(\vect{p}-\vect{a})\cdot(\vect{b}-\vect{a})}{|\vect{b}-\vect{a}|^2},\,0,\,1\right),
+\end{equation}
+i.e.\ the distance to the closest point of the segment. The arrow with the smallest $d$ under a
+threshold (\SI{8}{px} for a mouse, \SI{22}{px} for touch) is chosen. The tooltip's angles use the same
+inversion as in Milestone~1.1: $\theta=\operatorname{atan2}(-F_z, F_x)$, $\varphi=\arcsin(F_y/|\vect{F}|)$.
+
+\subsection{An anti-aliased procedural grid}
+The grid is computed for each pixel from that pixel's world coordinates $(x,z)$ rather than drawn as
+geometry. For spacing $s$, let $\vect{c} = (x,z)/s$. The distance to the nearest grid line, in
+units of whole grid cells, is $|\operatorname{fract}(c-\tfrac12)-\tfrac12|$. Dividing by
+$\operatorname{fwidth}(c) = |\partial c/\partial X| + |\partial c/\partial Y|$, the change of $c$
+from one screen pixel to the next, converts it to \emph{pixels}. That gives lines of constant screen
+width that stay anti-aliased at any distance.
+
+Far away, many grid lines fall within one pixel and would alias into moiré patterns. The grid's
+opacity is therefore faded to zero with distance $D$ from the camera using a smooth step,
+\[
+  \operatorname{fade}(D) = 1 - \operatorname{smoothstep}(D_0/4,\ D_0,\ D),\qquad D_0 = \max(40,\ 12\,|y_\text{cam}|)\ \text{m},
+\]
+and linear fog blends the floor itself into the background colour between \SI{60}{m} and \SI{400}{m}. Together
+these make the finite floor plane (\SI{10}{km} across) look endless.
+
+\paragraph{Colour space.} Lit materials compute in \emph{linear} RGB, and the result is converted to
+sRGB for display. Grid colours written in sRGB must therefore be converted first
+($c_\text{lin} \approx c_\text{sRGB}^{2.2}$). Otherwise mid-grey lines come out almost the same
+colour as the floor.
+
+\section*{Changelog}
+\begin{itemize}
+  \item \textbf{Milestone 1} --- semi-implicit Euler, friction regularisation, landing snap,
+        path-length accumulation, exact time grid.
+  \item \textbf{Milestone 1.1} --- inverting the direction formula, ray--plane picking for
+        arrow dragging, the axis gizmo projection.
+  \item \textbf{Milestone 1.2} --- point-to-segment picking, derivative-based grid lines, distance fade.
+\end{itemize}
+
+\printbibliography
+\end{document}

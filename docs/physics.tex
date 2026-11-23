@@ -1,0 +1,165 @@
+\documentclass[11pt]{article}
+\input{preamble}
+\title{\project{} --- Physics Notes}
+\author{Living document}
+\date{Last updated: \today}
+
+\begin{document}
+\maketitle
+\noindent This document records the physical models used by the sandbox, the
+assumptions behind them and their known limitations. Each implementation step
+adds a section. The companion documents cover the numerical methods
+(\emph{Math Notes}) and the software design (\emph{Code Notes}).
+
+\tableofcontents
+
+\section{Conventions}
+\begin{itemize}
+  \item SI units throughout: metres, kilograms, seconds, newtons.
+  \item Right-handed coordinates with $y$ pointing \emph{up} (the three.js
+        convention~\cite{threejs}). The floor is the plane $y=0$; the table top is
+        at $y=h=\SI{0.8}{m}$.
+  \item A force direction is given by an \emph{azimuth} $\theta$ in the horizontal
+        $x$--$z$ plane, measured from $+x$ toward $-z$ (counter-clockwise when seen
+        from above), and an \emph{elevation} $\varphi$ above the horizontal:
+        \begin{equation}
+          \unitv{n}(\theta,\varphi) = (\cos\varphi\cos\theta,\; \sin\varphi,\; -\cos\varphi\sin\theta).
+          \label{eq:dir}
+        \end{equation}
+\end{itemize}
+
+\section{Milestone 1: a ball on a table}
+
+\subsection{Model}
+The ball (mass $m$, radius $r$) is treated as a \emph{particle} located at its
+centre $\vect{r}(t)$. Its motion obeys Newton's second law~\cite{halliday2013,kleppner2014}
+\begin{equation}
+  m\,\ddot{\vect{r}} = \vect{F}_\text{net} = \vect{F}_g + \sum_i \vect{F}_i(t) + \vect{N} + \vect{f}.
+\end{equation}
+The radius matters only for \emph{where} contact happens: the ball touches a
+surface of height $y_s$ when its centre is at $y = y_s + r$.
+
+\subsection{Forces}
+\paragraph{Gravity.} $\vect{F}_g = (0,-mg,0)$ with $g = \SI{9.81}{m/s^2}$ by default.
+
+\paragraph{Applied forces.} The user specifies a magnitude $F_i$, a direction
+\eqref{eq:dir}, and a duration $\tau_i$. The force starts at the time $t_i$ at
+which it is applied and is constant on the window $t_i \le t < t_i+\tau_i$:
+\begin{equation}
+  \vect{F}_i(t) = F_i\,\unitv{n}_i \quad\text{if } t\in[t_i, t_i+\tau_i),\qquad \vect{0}\text{ otherwise.}
+\end{equation}
+The impulse delivered is $\vect{J}_i = F_i\tau_i\,\unitv{n}_i$, so, on a frictionless
+table, a force acting for $\tau$ changes the velocity by $\Delta\vect{v} = \vect{J}/m$.
+
+\paragraph{Normal force.} A rigid horizontal surface can only push. With
+$\vect{F}_\text{ext} = \vect{F}_g + \sum_i\vect{F}_i$, a ball resting on the surface feels
+\begin{equation}
+  N = \max\!\left(0,\, -F_{\text{ext},y}\right), \qquad \vect{N} = (0, N, 0).
+\end{equation}
+If the applied force pulls upward harder than the weight ($F_{\text{ext},y}>0$) the
+normal force vanishes and the ball lifts off.
+
+\paragraph{Friction (Coulomb model).} The classic dry-friction law~\cite{halliday2013,stewart2000}:
+\begin{itemize}
+  \item \emph{Static} (ball at rest, horizontal push $\vect{F}_h$): $\vect{f} = -\vect{F}_h$ as long as
+        $|\vect{F}_h| \le \mu_s N$; the ball does not move.
+  \item \emph{Kinetic} (ball sliding with horizontal velocity $\vect{v}_h$):
+        $\vect{f} = -\mu_k N\,\vect{v}_h/|\vect{v}_h|$, independent of speed.
+  \item If a resting ball is pushed with $|\vect{F}_h| > \mu_s N$ it breaks free and
+        kinetic friction acts opposite to the push.
+\end{itemize}
+Default values: table $\mu_s = 0.25$, $\mu_k = 0.20$; floor $\mu_s = 0.5$, $\mu_k=0.4$.
+
+\subsection{Leaving the table and landing}
+The table supports the ball only while its centre lies above the table top
+($|x|\le \SI{1.2}{m}$, $|z|\le\SI{0.6}{m}$). Past the edge the ball is a projectile: horizontal
+velocity is constant and it accelerates downward at $g$~\cite{taylor2005}. Starting from the
+table with horizontal speed $v$, it reaches the floor after
+\begin{equation}
+  t_\text{fall} = \sqrt{2h/g} \approx \SI{0.404}{s}, \qquad \text{landing a horizontal distance } v\,t_\text{fall}\text{ from the edge.}
+\end{equation}
+Landing is modelled as \emph{perfectly inelastic} in the vertical direction (no bounce): the
+vertical velocity is removed and the ball then slides on the floor with the floor's friction.
+
+\subsection{Reference results (used as automated tests)}
+\begin{center}
+\begin{tabular}{@{}ll@{}}
+\toprule
+Situation & Expected result \\ \midrule
+Constant $F$ on frictionless table & $x = \tfrac12 (F/m)\, t^2$, $v = (F/m)\,t$ \\
+$F \le \mu_s m g$ & ball stays at rest \\
+$F > \mu_s m g$ & $a = (F - \mu_k m g)/m$ \\
+Sliding at $v_0$, no applied force & stops after $t = v_0/(\mu_k g)$, distance $v_0^2/(2\mu_k g)$ \\
+Off the edge & reaches the floor after $\sqrt{2h/g}$ \\
+Upward force $> mg$ & ball lifts off \\ \bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Kinematic quantities shown in the plots}
+\begin{itemize}
+  \item \textbf{Displacement} $\Delta\vect{r}(t) = \vect{r}(t)-\vect{r}(0)$: a vector; components $\Delta x,\Delta y,\Delta z$ and magnitude $|\Delta\vect{r}|$.
+  \item \textbf{Distance} (path length) $s(t) = \int_0^t |\vect{v}|\,\dd t'$: a scalar that never decreases.
+        The ``components'' plotted are the per-axis path lengths $\int_0^t |v_x|\,\dd t'$ etc.
+        Note $s \ge |\Delta\vect{r}|$, with equality only for straight-line motion without reversal.
+  \item \textbf{Velocity} $\vect{v} = \dot{\vect{r}}$ and \textbf{speed} $|\vect{v}|$.
+  \item \textbf{Acceleration} $\vect{a} = \vect{F}_\text{net}/m$ and its magnitude.
+\end{itemize}
+
+\subsection{Assumptions and limitations}
+\begin{itemize}
+  \item \textbf{No rotation.} A real ball pushed on a rough table would roll. For a uniform
+        solid sphere rolling without slipping, $I = \tfrac25 m r^2$ and a horizontal force through
+        the centre gives $a = \tfrac{5}{7}F/m$~\cite{kleppner2014}. Rolling, and the transition
+        from sliding to rolling, is planned for a later milestone.
+  \item No air resistance.
+  \item The ball is supported while its \emph{centre} is over the table; it does not tip
+        over the edge gradually, and collisions with the side of the table are ignored.
+  \item Landing is perfectly inelastic (coefficient of restitution $e=0$).
+  \item Table and floor are rigid and immovable.
+\end{itemize}
+
+\section{Milestone 1.1: configurable table}
+\subsection{Table geometry}
+The table top is a horizontal rectangle of length $L$ (along $x$), width $W$ (along $z$) and height $h$,
+centred above the origin. The user chooses all three
+($\SI{0.2}{m}\le L, W\le\SI{20}{m}$, $\SI{0.1}{m}\le h\le\SI{3}{m}$). The physics needs only the
+supporting region $|x|\le L/2$, $|z|\le W/2$ at $y=h$. The ball starts at rest at
+$(-L/3,\ h+r,\ 0)$, on the left third of the table, which leaves room to push it toward $+x$.
+
+Changing $h$ changes how long the ball takes to fall after leaving the edge,
+$t_\text{fall}=\sqrt{2h/g}$, and so how far from the table it lands. This makes for an easy
+classroom experiment: double the height and the landing distance grows by $\sqrt2$.
+
+\subsection{No table}
+The table can be removed. The ball then starts at rest on the floor at $(0, r, 0)$, and every
+force acts against the floor's friction coefficients. The floor is unbounded, so the ball can never
+fall off.
+
+\subsection{Choosing a force by dragging}
+The force can also be set by dragging the tip of the preview arrow in the 3D view. The arrow is
+drawn to a fixed scale of \SI{0.06}{m} per newton, so the arrow's length \emph{is} the
+magnitude. Dragging changes the force vector directly, and the magnitude, azimuth and
+elevation fields update to match (see the \emph{Math Notes}).
+
+\section{Milestone 1.2: reading the forces}
+Hovering over any force arrow (or tapping it on a touch screen) shows that force's magnitude,
+its Cartesian components and its direction as azimuth and elevation. Because the arrows are
+re-evaluated at the current time, this makes a free-body diagram that can be read off directly.
+For a ball resting on the table, for instance, gravity reads $(0, -mg, 0)$, the normal force reads
+$(0, +mg, 0)$, and their sum is zero, as Newton's first law requires~\cite{halliday2013}. While an
+applied force pushes the ball, the friction arrow switches from \emph{static} (equal and opposite to
+the push) to \emph{kinetic} (magnitude $\mu_k N$, opposite to the velocity).
+
+The applied-force arrow shows the \emph{sum} of all applied forces active at that moment.
+
+\section*{Changelog}
+\begin{itemize}
+  \item \textbf{Milestone 1} --- particle on a table: gravity, timed applied forces, normal force,
+        Coulomb friction, edge fall, inelastic landing.
+  \item \textbf{Milestone 1.1} --- user-defined table size and height, optional table, force
+        chosen by dragging its arrow.
+  \item \textbf{Milestone 1.2} --- force tooltips (free-body diagram readout).
+\end{itemize}
+
+\printbibliography
+\end{document}
