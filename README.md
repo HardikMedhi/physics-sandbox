@@ -3,6 +3,11 @@
 Interactive, educational 3D physics sandbox.
 
 **Live demo:** https://hardikmedhi.github.io/physics-sandbox/ (nothing to install; works in a desktop or phone browser).
+
+**Documentation (PDF, rebuilt on every deploy):**
+[Physics notes](https://hardikmedhi.github.io/physics-sandbox/docs/physics.pdf) ·
+[Math notes](https://hardikmedhi.github.io/physics-sandbox/docs/math.pdf) ·
+[Code notes](https://hardikmedhi.github.io/physics-sandbox/docs/code.pdf)
  It's a web app first; desktop and Android wrappers come later.
 
 **Milestone 1:** a ball on a table. Apply timed forces and plot distance, displacement, velocity
@@ -22,7 +27,7 @@ npm install -D typescript vite vitest @types/three
 npm run dev      # http://localhost:5173
 npm test
 npm run build    # static site in dist/
-make -C docs     # docs/build/{physics,math,code}.pdf
+npm run docs     # build the PDFs (docs/build/) and copy them to public/docs/ for the app
 ```
 
 ## Layout
@@ -33,5 +38,5 @@ make -C docs     # docs/build/{physics,math,code}.pdf
 - `docs/`: living documents (physics, math, code) in LaTeX.
 
 ## Deployment
-Every push to `main` runs the tests, builds the app and publishes it to GitHub Pages
+Every push to `main` runs the tests, builds the PDFs and the app, and publishes both to GitHub Pages
 (`.github/workflows/deploy.yml`).

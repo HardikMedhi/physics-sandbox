@@ -3,6 +3,7 @@ import './sandboxHost';
 import { BALL_RADIUS, DEFAULT_SETTINGS, type PhysicsSettings, type Vec3, buildWorldParams, tableSpec } from './core';
 import { Viewport } from './render/viewport';
 import { SimulationController } from './sim/controller';
+import { createDocsPanel } from './ui/docsPanel';
 import { createForcePanel } from './ui/forcePanel';
 import { createHud } from './ui/hud';
 import { createPlotPanel } from './ui/plotPanel';
@@ -45,6 +46,7 @@ $('sidebar').append(
   forcePanel.element,
   plots.element,
   createSettingsPanel(DEFAULT_SETTINGS, { onChange: applySettings, onShowForces: (show) => (showForces = show) }),
+  createDocsPanel(),
 );
 createTimeline($('timeline'), sim);
 

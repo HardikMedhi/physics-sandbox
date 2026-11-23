@@ -252,6 +252,32 @@ the depth test near the camera and the grid disappeared there. Putting the grid 
 material avoids depth problems entirely. It also costs one draw call less, and the lines are lit,
 shadowed and fogged together with the floor.
 
+\section{Milestone 1.3: deployment and published documents}
+
+\subsection{GitHub Pages}
+The app is a static site, so it can be hosted for free on GitHub Pages at
+\url{https://hardikmedhi.github.io/physics-sandbox/}. Because \texttt{vite.config.ts} sets
+\texttt{base: './'}, every asset URL is relative and the site works from that sub-path unchanged.
+Opening \texttt{dist/index.html} straight from disk does \emph{not} work, because browsers block ES
+module scripts loaded from \texttt{file://} URLs.
+
+\texttt{.github/workflows/deploy.yml} runs on every push to \texttt{main}:
+\begin{enumerate}
+  \item \texttt{npm ci} and \texttt{npm test}. A failing test stops the deployment.
+  \item Install a minimal \TeX{} Live from Ubuntu packages and run \texttt{npm run docs}
+        (\texttt{make -C docs publish}). This builds the three PDFs and copies them to \texttt{public/docs/}.
+  \item \texttt{npm run build}: Vite copies \texttt{public/} into \texttt{dist/}, so the PDFs are
+        served at \texttt{docs/physics.pdf} and so on, next to the app.
+  \item Upload \texttt{dist/} as the Pages artifact and deploy it.
+\end{enumerate}
+The PDFs are generated and never committed (\texttt{public/docs/} is in \texttt{.gitignore}), so the published
+documents always match the \LaTeX{} sources of the deployed version.
+
+\subsection{Links in the app}
+A collapsible \emph{Documentation} panel (\texttt{ui/docsPanel.ts}) at the bottom of the sidebar links to
+the three PDFs with relative URLs. Locally, run \texttt{npm run docs} once so that the dev server has
+them to serve.
+
 \section*{Changelog}
 \begin{itemize}
   \item \textbf{Milestone 1} --- project scaffold, physics core, controller/timeline, three.js
@@ -259,6 +285,7 @@ shadowed and fogged together with the floor.
   \item \textbf{Milestone 1.1} --- axis gizmo, table size/height/on--off, draggable force arrow,
         pop-out plot windows (multi-page build), \texttt{PlotChart} extracted.
   \item \textbf{Milestone 1.2} --- force-arrow tooltips, procedural infinite floor grid with fog.
+  \item \textbf{Milestone 1.3} --- GitHub Pages deployment; PDFs built in CI and linked from the app.
 \end{itemize}
 
 \printbibliography
