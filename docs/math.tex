@@ -173,6 +173,38 @@ sRGB for display. Grid colours written in sRGB must therefore be converted first
 ($c_\text{lin} \approx c_\text{sRGB}^{2.2}$). Otherwise mid-grey lines come out almost the same
 colour as the floor.
 
+\section{Milestone 2: impacts, energy and floor precision}
+
+\subsection{Handling an impact inside a time step}
+Suppose a step carries the centre from above the contact height $y_c = y_s + r$ to $y_{n+1} < y_c$. The ball actually hit
+the surface part-way through the step and spent the rest of the step moving back up. To first order the overshoot is
+mirrored and scaled by $e$:
+\begin{equation}
+  y_{n+1} \leftarrow y_c + e\,(y_c - y_{n+1}),\qquad v_{y,n+1} \leftarrow -e\,v_{y,n+1}.
+\end{equation}
+This keeps the rebound height correct to $O(\Delta t)$. The test drops a ball from \SI{1}{m} with
+$\Delta t=\SI{0.5}{ms}$ and checks that the first rebound peaks within \SI{1}{cm} of $e^2\cdot\SI{1}{m}$ for $e = 0.3, 0.6, 0.9$.
+If $-e\,v_y < 2g\Delta t$ the ball is snapped onto the surface with $v_y=0$. Without that rule, the bounce heights
+$e^{2n}h$ form an infinite sequence whose total duration is finite (a geometric series, the ``Zeno'' behaviour of
+bouncing balls), which a fixed-step integrator cannot resolve.
+
+\subsection{Energy and the integrator}
+KE and PE are computed exactly from each recorded state. Their sum, however, is only conserved approximately by the numerical
+method. Semi-implicit Euler is symplectic, so for conservative motion the energy error oscillates and stays bounded
+($O(\Delta t)$) rather than drifting~\cite{hairer2006}. The test checks that TE stays within 1\,\% over free fall and several elastic
+bounces. The energy plot is therefore also a useful check on accuracy: a visibly drifting TE in a frictionless, elastic setup
+means $\Delta t$ is too large.
+
+\subsection{Why the floor shimmered, and the fix}
+GPUs interpolate per-vertex values (here, world position and shadow-map coordinates) across each triangle with
+\emph{perspective-correct} interpolation, in 32-bit floating point (about 7 significant digits). The original floor was a
+\SI{10}{km} square of two triangles, so values near the camera were interpolated between vertices kilometres away. Clipping
+the triangles at the near plane and the perspective division amplify the rounding error~\cite{goldberg1991}. The result was
+sub-pixel errors in the grid and shadow lookups that changed with every tiny camera movement, and so they were visible while
+the damped camera was still settling. The floor is now a \SI{2}{km} plane made of \SI{20}{m} cells (so interpolation spans
+are short) that is re-centred under the camera in whole cells. Since the grid is computed from world coordinates, the
+re-centring is invisible.
+
 \section*{Changelog}
 \begin{itemize}
   \item \textbf{Milestone 1} --- semi-implicit Euler, friction regularisation, landing snap,
@@ -180,6 +212,8 @@ colour as the floor.
   \item \textbf{Milestone 1.1} --- inverting the direction formula, ray--plane picking for
         arrow dragging, the axis gizmo projection.
   \item \textbf{Milestone 1.2} --- point-to-segment picking, derivative-based grid lines, distance fade.
+  \item \textbf{Milestone 2} --- impact reflection and rest threshold, energy conservation of the integrator,
+        floating-point analysis of the floor shimmer.
 \end{itemize}
 
 \printbibliography

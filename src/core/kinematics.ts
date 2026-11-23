@@ -1,43 +1,54 @@
 import type { History, HistoryField } from './history';
 
-export type Quantity = 'distance' | 'displacement' | 'velocity' | 'acceleration';
+export type Quantity = 'distance' | 'displacement' | 'velocity' | 'acceleration' | 'energy';
+
+/** What a plotted line represents; the UI maps roles to colours. */
+export type SeriesRole = 'x' | 'y' | 'z' | 'total' | 'ke' | 'pe' | 'te';
+
+export interface SeriesInfo {
+  readonly field: HistoryField;
+  readonly label: string;
+  readonly role: SeriesRole;
+}
 
 export interface QuantityInfo {
   readonly id: Quantity;
   readonly label: string;
-  /** symbol used for the overall (magnitude) line */
-  readonly symbol: string;
   readonly unit: string;
-  /** history columns: x, y, z components then the overall quantity */
-  readonly fields: readonly [HistoryField, HistoryField, HistoryField, HistoryField];
-  readonly componentLabels: readonly [string, string, string, string];
+  readonly series: readonly SeriesInfo[];
 }
+
+const vector = (fields: [HistoryField, HistoryField, HistoryField, HistoryField], labels: [string, string, string, string]): SeriesInfo[] =>
+  (['x', 'y', 'z', 'total'] as const).map((role, i) => ({ field: fields[i], label: labels[i], role }));
 
 export const QUANTITIES: Readonly<Record<Quantity, QuantityInfo>> = {
   distance: {
-    id: 'distance', label: 'Distance', symbol: 's', unit: 'm',
-    fields: ['sx', 'sy', 'sz', 's'],
-    componentLabels: ['∫|vₓ|dt', '∫|v_y|dt', '∫|v_z|dt', 's = ∫|v|dt'],
+    id: 'distance', label: 'Distance', unit: 'm',
+    series: vector(['sx', 'sy', 'sz', 's'], ['∫|vₓ|dt', '∫|v_y|dt', '∫|v_z|dt', 's = ∫|v|dt']),
   },
   displacement: {
-    id: 'displacement', label: 'Displacement', symbol: '|Δr|', unit: 'm',
-    fields: ['rx', 'ry', 'rz', 'r'],
-    componentLabels: ['Δx', 'Δy', 'Δz', '|Δr|'],
+    id: 'displacement', label: 'Displacement', unit: 'm',
+    series: vector(['rx', 'ry', 'rz', 'r'], ['Δx', 'Δy', 'Δz', '|Δr|']),
   },
   velocity: {
-    id: 'velocity', label: 'Velocity', symbol: '|v|', unit: 'm/s',
-    fields: ['vx', 'vy', 'vz', 'v'],
-    componentLabels: ['vₓ', 'v_y', 'v_z', '|v|'],
+    id: 'velocity', label: 'Velocity', unit: 'm/s',
+    series: vector(['vx', 'vy', 'vz', 'v'], ['vₓ', 'v_y', 'v_z', '|v|']),
   },
   acceleration: {
-    id: 'acceleration', label: 'Acceleration', symbol: '|a|', unit: 'm/s²',
-    fields: ['ax', 'ay', 'az', 'a'],
-    componentLabels: ['aₓ', 'a_y', 'a_z', '|a|'],
+    id: 'acceleration', label: 'Acceleration', unit: 'm/s²',
+    series: vector(['ax', 'ay', 'az', 'a'], ['aₓ', 'a_y', 'a_z', '|a|']),
+  },
+  energy: {
+    id: 'energy', label: 'Energy', unit: 'J',
+    series: [
+      { field: 'ke', label: 'KE = ½mv²', role: 'ke' },
+      { field: 'pe', label: 'PE = mgh', role: 'pe' },
+      { field: 'te', label: 'TE = KE + PE', role: 'te' },
+    ],
   },
 };
 
-/** Zero-copy series [t, x, y, z, overall] for a quantity. */
-export function quantitySeries(h: History, q: Quantity): [Float64Array, Float64Array, Float64Array, Float64Array, Float64Array] {
-  const [fx, fy, fz, fm] = QUANTITIES[q].fields;
-  return [h.column('t'), h.column(fx), h.column(fy), h.column(fz), h.column(fm)];
+/** Zero-copy series [t, ...lines] for a quantity. */
+export function quantitySeries(h: History, q: Quantity): Float64Array[] {
+  return [h.column('t'), ...QUANTITIES[q].series.map((s) => h.column(s.field))];
 }

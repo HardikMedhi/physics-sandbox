@@ -7,10 +7,12 @@ import { createBall } from './ball';
 import { CameraRig } from './camera';
 import { FORCE_SCALE, ForceArrow, type VectorLike } from './forceArrow';
 import { ForceHandle } from './forceHandle';
+import { followCamera } from './infiniteGrid';
 import { type Quality, detectQuality } from './quality';
 import { createRenderer } from './renderer';
 import { createScene } from './scene';
-import { createTable } from './table';
+import { SelectionTool, type TransformOptions } from './selection';
+import { TableObject } from './table';
 
 export interface ViewportOptions {
   table: TableSpec | null;
@@ -27,9 +29,11 @@ export class Viewport {
 
   private readonly renderer: THREE.WebGLRenderer;
   private readonly scene: THREE.Scene;
+  private readonly floor: THREE.Mesh;
   private readonly ball: THREE.Mesh;
-  private readonly radius: number;
-  private table: THREE.Group | null = null;
+  private radius: number;
+  private readonly table = new TableObject();
+  readonly selection: SelectionTool;
   private readonly arrows = {
     applied: new ForceArrow(FORCE_COLORS.applied),
     gravity: new ForceArrow(FORCE_COLORS.gravity),
@@ -47,13 +51,17 @@ export class Viewport {
     this.quality = detectQuality();
     this.renderer = createRenderer(this.quality);
     container.appendChild(this.renderer.domElement);
-    this.scene = createScene(this.quality);
+    const built = createScene(this.quality);
+    this.scene = built.scene;
+    this.floor = built.floor;
     this.applyBackground();
     matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => this.applyBackground());
 
+    this.scene.add(this.table.group);
     this.setTable(opts.table);
     this.radius = opts.ballRadius;
-    this.ball = createBall(opts.ballRadius);
+    this.ball = createBall();
+    this.ball.scale.setScalar(opts.ballRadius);
     this.setBallPosition(opts.ballStart);
     this.scene.add(this.ball);
     for (const a of Object.values(this.arrows)) this.scene.add(a.object);
@@ -71,6 +79,8 @@ export class Viewport {
     this.handle = new ForceHandle(this.rig, this.renderer.domElement);
     this.handle.onDrag = (f) => this.onPreviewDrag(f);
     this.scene.add(this.handle.object);
+
+    this.selection = new SelectionTool(this.rig, this.renderer.domElement, this.scene, () => [this.ball, this.table.group, this.floor]);
 
     this.gizmo = new AxisGizmo(this.rig);
     container.append(this.gizmo.element);
@@ -94,21 +104,29 @@ export class Viewport {
     resize();
   }
 
-  /** Replace the table (null removes it). */
+  /** Update the table (null hides it). */
   setTable(spec: TableSpec | null): void {
-    if (this.table) {
-      this.scene.remove(this.table);
-      this.table.traverse((o) => {
-        const mesh = o as THREE.Mesh;
-        mesh.geometry?.dispose();
-        (mesh.material as THREE.Material | undefined)?.dispose();
-      });
-      this.table = null;
-    }
-    if (spec) {
-      this.table = createTable(spec);
-      this.scene.add(this.table);
-    }
+    // Do not fight the gizmo while the user is scaling the table.
+    if (this.selection?.isDragging && this.selection.mode === 'scale') return;
+    this.table.set(spec);
+  }
+
+  setBallRadius(r: number): void {
+    this.radius = r;
+    if (!(this.selection?.isDragging && this.selection.mode === 'scale')) this.ball.scale.setScalar(r);
+  }
+
+  /** The 3D object for a selectable id (null if none/hidden). */
+  objectFor(id: string | null): THREE.Object3D | null {
+    if (id === 'ball') return this.ball;
+    if (id === 'table') return this.table.group.visible ? this.table.group : null;
+    if (id === 'floor') return this.floor;
+    return null;
+  }
+
+  /** Select an object in the 3D view (highlight + gizmo). */
+  select(id: string | null, options: TransformOptions | null): void {
+    this.selection.setSelected(id, this.objectFor(id), options);
   }
 
   setBallPosition(p: Vec3): void {
@@ -143,6 +161,8 @@ export class Viewport {
   render(dt: number): void {
     this.rig.track(this.ball.position);
     this.rig.update(dt);
+    followCamera(this.floor, this.rig.camera);
+    this.selection.update();
     this.gizmo.update();
     this.tooltip.update();
     this.renderer.render(this.scene, this.rig.camera);

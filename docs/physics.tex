@@ -152,6 +152,54 @@ the push) to \emph{kinetic} (magnitude $\mu_k N$, opposite to the velocity).
 
 The applied-force arrow shows the \emph{sum} of all applied forces active at that moment.
 
+\section{Milestone 2: bouncing, energy, and an editable scene}
+
+\subsection{Bouncing: the coefficient of restitution}
+In a real impact the ball compresses, then springs back, and loses some energy as heat, sound and
+vibration. This is summarised by the \emph{coefficient of restitution}~\cite{halliday2013,taylor2005}
+\begin{equation}
+  e = \frac{\text{speed of separation}}{\text{speed of approach}} = -\frac{v_y^{\,\text{after}}}{v_y^{\,\text{before}}},\qquad 0\le e\le 1.
+\end{equation}
+$e=0$ means the ball does not bounce (the earlier behaviour), and $e=1$ means a perfectly elastic bounce. Since kinetic energy goes as
+$v^2$, each bounce keeps a fraction $e^2$ of the vertical kinetic energy, so a ball dropped from height $h$ rebounds to
+\begin{equation}
+  h_1 = e^2 h,\qquad h_n = e^{2n} h .
+\end{equation}
+Restitution really belongs to a \emph{pair} of materials. The sandbox gives the ball and each surface their own value and uses
+$e = e_\text{ball}\, e_\text{surface}$ for an impact. Surfaces default to $1$, so the ball's value applies unless a surface is
+made ``softer''. Only the vertical (normal) velocity is affected; friction during the brief impact is ignored. A bounce slower than
+$2g\,\Delta t$ is treated as coming to rest, which avoids an endless series of ever-tinier bounces.
+
+\subsection{Mechanical energy}
+The energy plot shows
+\begin{equation}
+  \text{KE} = \tfrac12 m |\vect{v}|^2,\qquad \text{PE} = m g\,(y - r),\qquad \text{TE} = \text{KE} + \text{PE}.
+\end{equation}
+Potential energy is measured from the ball resting on the floor (centre at $y=r$). Only differences in PE matter
+physically, so the choice of zero is a convention~\cite{kleppner2014}. The \emph{work--energy theorem} says
+\begin{equation}
+  \Delta\text{TE} = W_\text{applied} + W_\text{friction} + \Delta E_\text{impacts},
+\end{equation}
+so the plot shows directly:
+\begin{itemize}
+  \item free fall: KE and PE exchange while TE stays constant (gravity is conservative);
+  \item an applied force: TE rises by the work $\int \vect{F}\cdot\vect{v}\,\dd t$;
+  \item sliding friction: TE falls steadily (energy converted to heat);
+  \item each bounce: a sudden drop of TE by the factor $(1-e^2)$ of the vertical kinetic energy.
+\end{itemize}
+
+\subsection{Initial conditions and editing}
+Every object in the scene can be selected and edited:
+\begin{itemize}
+  \item the ball's mass, radius, bounciness, starting position and starting velocity;
+  \item the table's size, height, position, friction and bounciness (or the table can be removed);
+  \item the floor's friction and bounciness;
+  \item gravity (for instance Earth \SI{9.81}{m/s^2}, Moon \SI{1.62}{m/s^2}, Mars \SI{3.71}{m/s^2}).
+\end{itemize}
+These are \emph{initial conditions} and \emph{parameters}. Newtonian motion is fully determined by them~\cite{taylor2005},
+so every edit re-runs the simulation from $t=0$. Two rules keep the scene physically sensible: the ball cannot be placed inside
+the table top or below the floor, and a ball resting on the table moves with the table when the table is moved or resized.
+
 \section*{Changelog}
 \begin{itemize}
   \item \textbf{Milestone 1} --- particle on a table: gravity, timed applied forces, normal force,
@@ -159,6 +207,8 @@ The applied-force arrow shows the \emph{sum} of all applied forces active at tha
   \item \textbf{Milestone 1.1} --- user-defined table size and height, optional table, force
         chosen by dragging its arrow.
   \item \textbf{Milestone 1.2} --- force tooltips (free-body diagram readout).
+  \item \textbf{Milestone 2} --- coefficient of restitution (bouncing), energy plot, editable initial
+        conditions (position, velocity) and object properties.
 \end{itemize}
 
 \printbibliography

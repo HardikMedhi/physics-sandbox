@@ -1,8 +1,8 @@
 import uPlot from 'uplot';
 import 'uplot/dist/uPlot.min.css';
-import { QUANTITIES, type Quantity, quantitySeries } from '../core';
+import { QUANTITIES, type Quantity, type SeriesRole, quantitySeries } from '../core';
 import type { SimulationController } from '../sim/controller';
-import { AXIS_COLORS, cssVar } from '../theme';
+import { AXIS_COLORS, ENERGY_COLORS, cssVar } from '../theme';
 import { h } from './dom';
 
 /** Minimum time between full data refreshes while playing (keeps low-end devices smooth). */
@@ -27,7 +27,8 @@ export class PlotChart {
     private readonly body: HTMLElement,
     private readonly height: () => number,
   ) {
-    this.plot = new uPlot(this.options(), [[], [], [], [], []], body);
+    const empty = [[], ...QUANTITIES[quantity].series.map(() => [])] as unknown as uPlot.AlignedData;
+    this.plot = new uPlot(this.options(), empty, body);
     this.marker = h('div', { class: 'plot-marker' });
     this.plot.over.append(this.marker);
     this.unsubscribe = sim.events.on('history', () => (this.dirty = true));
@@ -74,7 +75,11 @@ export class PlotChart {
       ticks: { stroke: grid, width: 1 },
     });
     const value = (_u: uPlot, v: number | null) => (v === null || v === undefined ? '—' : v.toFixed(3));
-    const colors = [AXIS_COLORS.x, AXIS_COLORS.y, AXIS_COLORS.z, text];
+    const color: Record<SeriesRole, string> = {
+      x: AXIS_COLORS.x, y: AXIS_COLORS.y, z: AXIS_COLORS.z, total: text,
+      ke: ENERGY_COLORS.ke, pe: ENERGY_COLORS.pe, te: text,
+    };
+    const thick = (r: SeriesRole) => r === 'total' || r === 'te';
     return {
       width: Math.max(200, this.body.clientWidth),
       height: this.height(),
@@ -82,7 +87,7 @@ export class PlotChart {
       axes: [axis('t (s)'), axis(`${info.label} (${info.unit})`)],
       series: [
         { label: 't (s)', value },
-        ...info.componentLabels.map((label, i) => ({ label, stroke: colors[i], width: i === 3 ? 2.5 : 1.5, value })),
+        ...info.series.map((s) => ({ label: s.label, stroke: color[s.role], width: thick(s.role) ? 2.5 : 1.5, value })),
       ],
       legend: { live: true },
       cursor: { drag: { x: true, y: false } },

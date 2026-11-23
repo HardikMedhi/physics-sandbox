@@ -84,7 +84,7 @@ export function createPlotPanel(sim: SimulationController, plotArea: HTMLElement
   return {
     element: panel(
       'Plots',
-      h('p', { class: 'muted', text: 'Each plot shows the x, y, z components and the overall quantity. Drag on a plot to zoom; double-click to reset; ⧉ opens it in its own window.' }),
+      h('p', { class: 'muted', text: 'Vector plots show the x, y, z components and the overall quantity; the energy plot shows kinetic, potential and total energy. Drag on a plot to zoom; double-click to reset; ⧉ opens it in its own window.' }),
       toggles,
     ),
     update,

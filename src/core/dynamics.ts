@@ -3,6 +3,13 @@ import { gravityForce, totalAppliedForce } from './forces';
 import type { AppliedForce, BodyState, ForceBreakdown, Surface, WorldParams } from './types';
 import { add, scale, sum, vec3 } from './vec3';
 
+/**
+ * A bounce slower than this (m/s) is treated as coming to rest, which stops
+ * an endless series of ever-smaller bounces. Equal to the speed gravity adds
+ * in two steps.
+ */
+export const bounceRestSpeed = (g: number, dt: number): number => 2 * g * dt;
+
 /** All forces on the ball in the given state at time t. */
 export function evaluateForces(
   state: BodyState,
@@ -31,8 +38,9 @@ export function evaluateForces(
  *   v_{n+1} = v_n + a(x_n, v_n, t_n) Δt
  *   x_{n+1} = x_n + v_{n+1} Δt
  * plus two non-smooth corrections: kinetic friction may not reverse the
- * sliding direction within a step, and landing on a surface is perfectly
- * inelastic (vertical velocity removed, position snapped to the surface).
+ * sliding direction within a step, and an impact with a surface reverses the
+ * vertical velocity scaled by the restitution e (v_y → −e v_y); slow bounces
+ * come to rest on the surface.
  */
 export function step(
   state: BodyState,
@@ -56,8 +64,17 @@ export function step(
   let pos = add(state.pos, scale(vel, dt));
   const landed = landingSurface(state.pos.y, pos, params);
   if (landed) {
-    pos = vec3(pos.x, landed.top + params.ball.radius, pos.z);
-    vel = vec3(vel.x, Math.max(0, vel.y), vel.z);
+    const contactY = landed.top + params.ball.radius;
+    const e = params.ball.restitution * landed.restitution;
+    const vOut = -e * vel.y; // vel.y < 0 on impact
+    if (vOut > bounceRestSpeed(params.gravity, dt)) {
+      // Bounce: reflect the overshoot below the surface, scaled by e.
+      pos = vec3(pos.x, contactY + e * (contactY - pos.y), pos.z);
+      vel = vec3(vel.x, vOut, vel.z);
+    } else {
+      pos = vec3(pos.x, contactY, pos.z);
+      vel = vec3(vel.x, Math.max(0, vel.y), vel.z);
+    }
   }
   return { pos, vel };
 }

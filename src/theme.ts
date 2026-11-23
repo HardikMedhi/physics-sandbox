@@ -5,6 +5,12 @@ export const AXIS_COLORS = {
   z: '#3e63dd',
 } as const;
 
+/** Kinetic energy is orange (motion), potential energy purple (like gravity). */
+export const ENERGY_COLORS = {
+  ke: '#f08c00',
+  pe: '#8e4ec6',
+} as const;
+
 export const FORCE_COLORS = {
   applied: '#f5a524',
   preview: '#f5a524',

@@ -11,6 +11,8 @@ const HELP = [
   ['Frame ball', '. (period)'],
   ['Follow ball', 'F'],
   ['Reset view', 'Home'],
+  ['Select', 'Click an object (ball, table, floor) · Esc deselects'],
+  ['Edit', 'G move · T scale · drag the gizmo handles · Delete removes'],
   ['Axis gizmo', 'Click an axis end (bottom-left) to view along it'],
   ['Force arrow', 'Drag the orange tip handle (Shift = horizontal)'],
   ['Time', 'Space play/pause · ← → step'],

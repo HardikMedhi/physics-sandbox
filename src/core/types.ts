@@ -6,6 +6,8 @@ export interface Ball {
   readonly mass: number;
   /** m — used for contact height and rendering only (no rotation in v1). */
   readonly radius: number;
+  /** coefficient of restitution ("bounciness"), 0 = no bounce, 1 = perfectly elastic */
+  readonly restitution: number;
 }
 
 /**
@@ -24,6 +26,8 @@ export interface Surface {
   readonly muS: number;
   /** coefficient of kinetic friction */
   readonly muK: number;
+  /** surface restitution; the effective value for an impact is ball.restitution × this */
+  readonly restitution: number;
 }
 
 export interface WorldParams {
@@ -33,6 +37,8 @@ export interface WorldParams {
   readonly surfaces: readonly Surface[];
   /** initial position of the ball's centre, m */
   readonly initialPosition: Vec3;
+  /** initial velocity, m/s */
+  readonly initialVelocity: Vec3;
 }
 
 /**
@@ -87,4 +93,8 @@ export interface Sample {
   readonly pathAxes: Vec3;
   /** total path length ∫|v| dt, m */
   readonly path: number;
+  /** kinetic energy ½ m |v|², J */
+  readonly ke: number;
+  /** gravitational potential energy m g (y − r), zero when resting on the floor, J */
+  readonly pe: number;
 }

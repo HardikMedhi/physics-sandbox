@@ -222,3 +222,19 @@ body.plot-window { overflow: hidden; }
 .doc-links { list-style: none; padding: 0; margin: 0; }
 .doc-links li { padding: 4px 0; }
 .doc-links a { color: var(--accent); font-weight: 600; }
+
+/* scene outliner & inspector */
+.outliner { list-style: none; padding: 0; margin: 0 0 6px; }
+.outliner li { display: flex; gap: 4px; align-items: center; margin: 2px 0; }
+.outliner-item { flex: 1; text-align: left; display: flex; gap: 8px; align-items: center; }
+.outliner-item:disabled { opacity: 0.55; cursor: default; }
+.outliner-icon { width: 1.2em; text-align: center; }
+.inspector h4 { margin-top: 4px; }
+.mode-bar { display: flex; gap: 4px; align-items: center; margin: 4px 0 8px; }
+.vector-field { display: grid; grid-template-columns: 1fr; gap: 2px; margin: 6px 0; }
+.vector-inputs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
+.vector-inputs input { width: 100%; min-width: 0; }
+.vector-inputs input.axis-x { border-bottom: 2px solid #e5484d; }
+.vector-inputs input.axis-y { border-bottom: 2px solid #30a46c; }
+.vector-inputs input.axis-z { border-bottom: 2px solid #3e63dd; }
+button.wide { width: 100%; margin-top: 8px; }

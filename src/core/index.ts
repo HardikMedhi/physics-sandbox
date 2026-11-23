@@ -7,4 +7,4 @@ export * from './dynamics';
 export * from './world';
 export * from './history';
 export * from './kinematics';
-export * from './defaults';
+export * from './scene';

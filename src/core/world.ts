@@ -17,7 +17,7 @@ export class World {
     readonly schedule: readonly AppliedForce[],
     readonly dt: number,
   ) {
-    this.state = { pos: params.initialPosition, vel: ZERO };
+    this.state = { pos: params.initialPosition, vel: params.initialVelocity ?? ZERO };
   }
 
   get stepIndex(): number {
@@ -30,6 +30,8 @@ export class World {
 
   sample(): Sample {
     const f = evaluateForces(this.state, this.time, this.params, this.schedule);
+    const { mass, radius } = this.params.ball;
+    const v = this.state.vel;
     return {
       t: this.time,
       pos: this.state.pos,
@@ -37,6 +39,8 @@ export class World {
       acc: scale(f.net, 1 / this.params.ball.mass),
       pathAxes: this.pathAxes,
       path: this.path,
+      ke: 0.5 * mass * (v.x * v.x + v.y * v.y + v.z * v.z),
+      pe: mass * this.params.gravity * (this.state.pos.y - radius),
     };
   }
 

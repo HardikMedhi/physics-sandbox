@@ -1,8 +1,18 @@
 import * as THREE from 'three';
 import { AXIS_COLORS } from '../theme';
 
-/** Half-size of the floor plane, m. Far beyond the fog distance, so the edge is never seen. */
-export const FLOOR_HALF_SIZE = 5000;
+/**
+ * Floor size and tessellation. The plane is recentred under the camera every
+ * frame (in whole cells, which changes nothing visible because the grid is
+ * computed from world coordinates), so it only needs to reach past the fog.
+ *
+ * It is deliberately split into many small triangles: interpolating
+ * per-pixel world positions and shadow coordinates across a few huge
+ * (kilometre-sized) triangles loses float precision, which showed up as the
+ * floor grid and shadows shimmering while the camera moved.
+ */
+export const FLOOR_SIZE = 2000;
+export const FLOOR_CELL = 20;
 
 /** sRGB hex colour → linear-space GLSL vec3 (lit materials work in linear space). */
 const hex = (c: string) => {
@@ -39,7 +49,8 @@ const GRID_GLSL = /* glsl */ `
 
 /** A very large floor whose material draws an infinite-looking grid. */
 export function createInfiniteFloor(): THREE.Mesh {
-  const size = 2 * FLOOR_HALF_SIZE;
+  const size = FLOOR_SIZE;
+  const segments = FLOOR_SIZE / FLOOR_CELL;
   const material = new THREE.MeshStandardMaterial({ color: 0x9aa4ad, roughness: 0.95 });
   material.onBeforeCompile = (shader) => {
     shader.vertexShader = shader.vertexShader
@@ -52,8 +63,15 @@ export function createInfiniteFloor(): THREE.Mesh {
         '#include <color_fragment>\nvec4 gridC = gridColor(vGridWorld);\ndiffuseColor.rgb = mix(diffuseColor.rgb, gridC.rgb, gridC.a);',
       );
   };
-  const floor = new THREE.Mesh(new THREE.PlaneGeometry(size, size), material);
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(size, size, segments, segments), material);
   floor.rotation.x = -Math.PI / 2;
   floor.receiveShadow = true;
+  floor.userData.selectId = 'floor';
   return floor;
+}
+
+/** Keep the floor centred under the camera, snapped to whole cells. */
+export function followCamera(floor: THREE.Object3D, camera: THREE.Camera): void {
+  floor.position.x = Math.round(camera.position.x / FLOOR_CELL) * FLOOR_CELL;
+  floor.position.z = Math.round(camera.position.z / FLOOR_CELL) * FLOOR_CELL;
 }

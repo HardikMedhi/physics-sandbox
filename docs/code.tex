@@ -278,6 +278,53 @@ A collapsible \emph{Documentation} panel (\texttt{ui/docsPanel.ts}) at the botto
 the three PDFs with relative URLs. Locally, run \texttt{npm run docs} once so that the dev server has
 them to serve.
 
+\section{Milestone 2: an editable sandbox}
+
+\subsection{Scene model and editor}
+\begin{center}
+\begin{tabular}{@{}lp{0.58\textwidth}@{}}
+\toprule
+Module & Role \\ \midrule
+\texttt{core/scene.ts} & \texttt{SceneSettings} (gravity, ball, table, floor), \texttt{DEFAULT\_SCENE},
+  \texttt{buildWorldParams()}, and pure edit functions \texttt{updateBall/Table/Floor} that apply the
+  rules (clamping, ball not inside solids, ball carried by the table). Replaces \texttt{defaults.ts}. \\
+\texttt{sim/sceneEditor.ts} & \texttt{SceneEditor}: holds the scene and the selection, emits \texttt{scene} and
+  \texttt{selection} events, and rebuilds the simulation after each edit. \texttt{beginDirectEdit()} pauses and
+  rewinds to $t=0$ when an object is dragged, because the drag edits initial conditions. \\
+\texttt{render/selection.ts} & \texttt{SelectionTool}: click picking (raycast against objects tagged
+  \texttt{userData.selectId}), a highlight \texttt{BoxHelper}, and a three.js \texttt{TransformControls} gizmo
+  (move/scale) with per-object options (no $y$ moves for the table, uniform scale for the ball). \\
+\texttt{render/table.ts} & \texttt{TableObject}: one persistent group (the gizmo stays attached) whose meshes are
+  rebuilt only when the size changes. Its origin is on the floor under the table's centre, so a $y$ scale is a height change. \\
+\texttt{ui/outliner.ts}, \texttt{ui/inspector.ts} & Blender-style scene list and properties editor. They replace the
+  settings panel. \\ \bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Direct manipulation flow}
+\begin{itemize}
+  \item \textbf{Move:} every \texttt{objectChange} from the gizmo becomes an editor update. The simulation re-runs (cheap
+        at $t=0$), and the frame loop puts the ball where the constrained physics says. Dragging the ball into the table
+        snaps it onto the top.
+  \item \textbf{Scale:} the gizmo scales the object visually during the drag. On release the scale is converted into
+        dimensions (length $\times s_x$, width $\times s_z$, height $\times s_y$; radius $= s$ for the unit-sphere ball),
+        and the mesh is rebuilt with scale 1. The viewport ignores scene updates while a scale drag is in progress so
+        that it does not fight the gizmo.
+  \item \textbf{Event priority on the canvas:} force-handle drag (capture phase, stops propagation) $>$ gizmo
+        (disables OrbitControls while dragging) $>$ click-to-select (a press and release within \SI{5}{px} with no
+        gizmo drag) $>$ orbit.
+\end{itemize}
+
+\subsection{Plots generalised}
+\texttt{QuantityInfo} now lists any number of series, each with a \emph{role} (\texttt{x}, \texttt{y}, \texttt{z},
+\texttt{total}, \texttt{ke}, \texttt{pe}, \texttt{te}) that the UI maps to colours. The energy plot is simply a new
+entry. \texttt{History} gained \texttt{ke}, \texttt{pe}, \texttt{te} columns.
+
+\subsection{Floor precision fix}
+\texttt{createInfiniteFloor()} now builds a \SI{2}{km} plane of $100\times100$ cells, and \texttt{followCamera()} re-centres it
+each frame. The shadow map also has a small depth and normal bias against self-shadowing stripes. See the
+\emph{Math Notes} for why the original two-triangle plane shimmered.
+
 \section*{Changelog}
 \begin{itemize}
   \item \textbf{Milestone 1} --- project scaffold, physics core, controller/timeline, three.js
@@ -286,6 +333,8 @@ them to serve.
         pop-out plot windows (multi-page build), \texttt{PlotChart} extracted.
   \item \textbf{Milestone 1.2} --- force-arrow tooltips, procedural infinite floor grid with fog.
   \item \textbf{Milestone 1.3} --- GitHub Pages deployment; PDFs built in CI and linked from the app.
+  \item \textbf{Milestone 2} --- selectable/editable objects (outliner, inspector, move/scale gizmo), bounciness,
+        energy plot, floor shimmer fix.
 \end{itemize}
 
 \printbibliography

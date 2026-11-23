@@ -12,6 +12,7 @@ export const HISTORY_FIELDS = [
   'vx', 'vy', 'vz', 'v', // velocity and speed
   'ax', 'ay', 'az', 'a', // acceleration and its magnitude
   'sx', 'sy', 'sz', 's', // per-axis and total path length (distance)
+  'ke', 'pe', 'te', // kinetic, potential and total mechanical energy
 ] as const;
 
 export type HistoryField = (typeof HISTORY_FIELDS)[number];
@@ -46,6 +47,7 @@ export class History {
     c.vx[i] = s.vel.x; c.vy[i] = s.vel.y; c.vz[i] = s.vel.z; c.v[i] = Math.hypot(s.vel.x, s.vel.y, s.vel.z);
     c.ax[i] = s.acc.x; c.ay[i] = s.acc.y; c.az[i] = s.acc.z; c.a[i] = Math.hypot(s.acc.x, s.acc.y, s.acc.z);
     c.sx[i] = s.pathAxes.x; c.sy[i] = s.pathAxes.y; c.sz[i] = s.pathAxes.z; c.s[i] = s.path;
+    c.ke[i] = s.ke; c.pe[i] = s.pe; c.te[i] = s.ke + s.pe;
     this.n++;
   }
 
@@ -64,6 +66,8 @@ export class History {
       acc: vec3(c.ax[i], c.ay[i], c.az[i]),
       pathAxes: vec3(c.sx[i], c.sy[i], c.sz[i]),
       path: c.s[i],
+      ke: c.ke[i],
+      pe: c.pe[i],
     };
   }
 
